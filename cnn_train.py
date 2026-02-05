@@ -6,7 +6,7 @@ from plot_utils import plot_and_save_history
 from convolutional import CnnVideoClassifier
 from UCF101_loader import load_ucf
 
-K.common.set_image_dim_ordering('tf')
+K.set_image_data_format('channels_last')
 
 
 def patch_path(path):

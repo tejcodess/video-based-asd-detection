@@ -1,10 +1,9 @@
-from keras.layers import Dense, Activation, Dropout, Bidirectional
-from keras.layers.recurrent import LSTM
+from keras.layers import Dense, Activation, Dropout, Bidirectional, LSTM
 from keras.models import Sequential
 from keras.applications.vgg16 import VGG16
 from keras.optimizers import SGD
 from keras import backend as K
-from keras.utils import np_utils
+from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from keras.callbacks import ModelCheckpoint
 import os
@@ -14,27 +13,59 @@ np.set_printoptions(suppress=True)
 
 from vgg16_feature_extractor import extract_vgg16_features_live, scan_and_extract_vgg16_features
 
-BATCH_SIZE = 625
+# Default batch size for large datasets
+DEFAULT_BATCH_SIZE = 625
+# Minimum batch size for small datasets
+MIN_BATCH_SIZE = 2
+
 NUM_EPOCHS = 100
 VERBOSE = 1
 HIDDEN_UNITS = 512
 MAX_ALLOWED_FRAMES = 125
 EMBEDDING_SIZE = 100
 
-K.common.set_image_dim_ordering('tf')
+K.set_image_data_format('channels_last')
 
 
-def generate_batch(x_samples, y_samples):
-    num_batches = len(x_samples) // BATCH_SIZE
+def get_adaptive_batch_size(num_samples):
+    """
+    Calculate adaptive batch size based on dataset size.
+    For small datasets (< 100 samples), use smaller batches.
+    """
+    if num_samples < 10:
+        return MIN_BATCH_SIZE
+    elif num_samples < 20:
+        return min(MIN_BATCH_SIZE, num_samples // 2)
+    elif num_samples < 50:
+        return min(4, num_samples // 2)
+    elif num_samples < 100:
+        return min(8, num_samples // 2)
+    elif num_samples < 500:
+        return min(32, num_samples // 4)
+    else:
+        return min(DEFAULT_BATCH_SIZE, num_samples // 4)
+
+
+def generate_batch(x_samples, y_samples, batch_size=None):
+    """
+    Generate batches for training/validation.
+    If batch_size is None, it will be calculated adaptively.
+    """
+    if batch_size is None:
+        batch_size = get_adaptive_batch_size(len(x_samples))
+    
+    num_batches = max(1, len(x_samples) // batch_size)  # Ensure at least 1 batch
+    
     # Printing the details about the input to the training model
     #print("Number of X Samples: " + str(len(x_samples)))
     #print("Number of Y Samples: " + str(len(y_samples)))
+    #print(f"Batch size: {batch_size}")
     #print("Number of Batches: " + str(num_batches))
 
     while True:
         for batchIdx in range(0, num_batches):
-            start = batchIdx * BATCH_SIZE
-            end = (batchIdx + 1) * BATCH_SIZE
+            start = batchIdx * batch_size
+            end = min((batchIdx + 1) * batch_size, len(x_samples))  # Don't exceed array bounds
             yield np.array(x_samples[start:end]), y_samples[start:end]
 
 
@@ -133,12 +164,24 @@ class vgg16BidirectionalLSTMVideoClassifier(object):
             temp[0:frames, :] = x
             x = temp
 
-        predicted_c = self.model.predict(np.array([x]))[0]
-        predicted_class = np.argmax(self.model.predict(np.array([x]))[0])
+        predicted_c = self.model.predict(np.array([x]), verbose=0)[0]
+        predicted_class = np.argmax(predicted_c)
         predicted_label = self.labels_idx2word[predicted_class]
         print('predicted_prob is: '+ str(predicted_c))
         return predicted_label
-        gc.collect()
+    
+    def predict_with_confidence(self, video_file_path):
+        """Predict class with confidence scores"""
+        x = extract_vgg16_features_live(self.vgg16_model, video_file_path)
+        frames = x.shape[0]
+        if frames > self.expected_frames:
+            x = x[0:self.expected_frames, :]
+        elif frames < self.expected_frames:
+            temp = np.zeros(shape=(self.expected_frames, x.shape[1]))
+            temp[0:frames, :] = x
+            x = temp
+        predicted_c = self.model.predict(np.array([x]), verbose=0)[0]
+        return predicted_c
 
     def fit(self, data_dir_path, model_dir_path, vgg16_include_top=True, data_set_name='autism_data', test_size=0.2,
             random_state=42):
@@ -189,7 +232,7 @@ class vgg16BidirectionalLSTMVideoClassifier(object):
 
         self.nb_classes = len(self.labels)
 
-        y_samples = np_utils.to_categorical(y_samples, self.nb_classes)
+        y_samples = to_categorical(y_samples, self.nb_classes)
 
         config = dict()
         config['labels'] = self.labels
@@ -208,20 +251,28 @@ class vgg16BidirectionalLSTMVideoClassifier(object):
         Xtrain, Xtest, Ytrain, Ytest = train_test_split(x_samples, y_samples, test_size=test_size,
                                                         random_state=random_state)
 
-        train_gen = generate_batch(Xtrain, Ytrain)
-        test_gen = generate_batch(Xtest, Ytest)
+        # Calculate adaptive batch size
+        train_batch_size = get_adaptive_batch_size(len(Xtrain))
+        test_batch_size = get_adaptive_batch_size(len(Xtest))
+        
+        print(f"\nDataset size: {len(x_samples)} samples")
+        print(f"Training samples: {len(Xtrain)}, batch size: {train_batch_size}")
+        print(f"Testing samples: {len(Xtest)}, batch size: {test_batch_size}")
 
-        train_num_batches = len(Xtrain) // BATCH_SIZE
-        test_num_batches = len(Xtest) // BATCH_SIZE
+        train_gen = generate_batch(Xtrain, Ytrain, train_batch_size)
+        test_gen = generate_batch(Xtest, Ytest, test_batch_size)
+
+        train_num_batches = max(1, len(Xtrain) // train_batch_size)
+        test_num_batches = max(1, len(Xtest) // test_batch_size)
         #Printing the number of batches for testing and training depending upon batch size and test train split
-        print(train_num_batches)
-        print(test_num_batches)
+        print(f"Train batches: {train_num_batches}")
+        print(f"Test batches: {test_num_batches}\n")
 
         checkpoint = ModelCheckpoint(filepath=weight_file_path, save_best_only=True)
-        history = model.fit_generator(generator=train_gen, steps_per_epoch=train_num_batches,
-                                      epochs=NUM_EPOCHS,
-                                      verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
-                                      callbacks=[checkpoint])
+        history = model.fit(train_gen, steps_per_epoch=train_num_batches,
+                           epochs=NUM_EPOCHS,
+                           verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
+                           callbacks=[checkpoint])
         model.save_weights(weight_file_path)
 
         return history
@@ -307,12 +358,24 @@ class vgg16LSTMVideoClassifier(object):
             temp = np.zeros(shape=(self.expected_frames, x.shape[1]))
             temp[0:frames, :] = x
             x = temp
-        predicted_c = self.model.predict(np.array([x]))[0]
-        predicted_class = np.argmax(self.model.predict(np.array([x]))[0])
+        predicted_c = self.model.predict(np.array([x]), verbose=0)[0]
+        predicted_class = np.argmax(predicted_c)
         predicted_label = self.labels_idx2word[predicted_class]
         print('predicted prob is: '+ str(predicted_c))
         return predicted_label
-        gc.collect()
+    
+    def predict_with_confidence(self, video_file_path):
+        """Predict class with confidence scores"""
+        x = extract_vgg16_features_live(self.vgg16_model, video_file_path)
+        frames = x.shape[0]
+        if frames > self.expected_frames:
+            x = x[0:self.expected_frames, :]
+        elif frames < self.expected_frames:
+            temp = np.zeros(shape=(self.expected_frames, x.shape[1]))
+            temp[0:frames, :] = x
+            x = temp
+        predicted_c = self.model.predict(np.array([x]), verbose=0)[0]
+        return predicted_c
 
     def fit(self, data_dir_path, model_dir_path, vgg16_include_top=True, data_set_name='autism_data', test_size=0.2, random_state=42):
         self.vgg16_include_top = vgg16_include_top
@@ -362,7 +425,7 @@ class vgg16LSTMVideoClassifier(object):
             y_samples[i] = self.labels[y_samples[i]]
 
         self.nb_classes = len(self.labels)
-        y_samples = np_utils.to_categorical(y_samples, self.nb_classes)
+        y_samples = to_categorical(y_samples, self.nb_classes)
 
         config = dict()
         config['labels'] = self.labels
@@ -380,19 +443,29 @@ class vgg16LSTMVideoClassifier(object):
         Xtrain, Xtest, Ytrain, Ytest = train_test_split(x_samples, y_samples, test_size=test_size,
                                                         random_state=random_state)
 
-        train_gen = generate_batch(Xtrain, Ytrain)
-        test_gen = generate_batch(Xtest, Ytest)
+        # Calculate adaptive batch size
+        train_batch_size = get_adaptive_batch_size(len(Xtrain))
+        test_batch_size = get_adaptive_batch_size(len(Xtest))
+        
+        print(f"\nDataset size: {len(x_samples)} samples")
+        print(f"Training samples: {len(Xtrain)}, batch size: {train_batch_size}")
+        print(f"Testing samples: {len(Xtest)}, batch size: {test_batch_size}")
 
-        train_num_batches = len(Xtrain) // BATCH_SIZE
-        test_num_batches = len(Xtest) // BATCH_SIZE
+        train_gen = generate_batch(Xtrain, Ytrain, train_batch_size)
+        test_gen = generate_batch(Xtest, Ytest, test_batch_size)
+
+        train_num_batches = max(1, len(Xtrain) // train_batch_size)
+        test_num_batches = max(1, len(Xtest) // test_batch_size)
         #print("Number of train batches: " + str(train_num_batches))
         #print("Number of test batches: " + str(test_num_batches))
+        print(f"Train batches: {train_num_batches}")
+        print(f"Test batches: {test_num_batches}\n")
 
         checkpoint = ModelCheckpoint(filepath=weight_file_path, save_best_only=True)
-        history = model.fit_generator(generator=train_gen, steps_per_epoch=train_num_batches,
-                                      epochs=NUM_EPOCHS,
-                                      verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
-                                      callbacks=[checkpoint])
+        history = model.fit(train_gen, steps_per_epoch=train_num_batches,
+                           epochs=NUM_EPOCHS,
+                           verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
+                           callbacks=[checkpoint])
         model.save_weights(weight_file_path)
 
         return history

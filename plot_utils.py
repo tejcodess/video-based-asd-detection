@@ -84,10 +84,18 @@ def plot_history_2win(history):
 def create_history_plot(history, model_name, metrics=None):
     plt.title('Accuracy and Loss (' + model_name + ')')
     if metrics is None:
-        metrics = {'acc', 'loss'}
-    if 'acc' in metrics:
-        plt.plot(history.history['acc'], color='g', label='Train Accuracy')
-        plt.plot(history.history['val_acc'], color='b', label='Validation Accuracy')
+        metrics = {'accuracy', 'loss'}
+    
+    # Support both old ('acc') and new ('accuracy') metric names
+    acc_key = 'accuracy' if 'accuracy' in history.history else 'acc'
+    val_acc_key = 'val_accuracy' if 'val_accuracy' in history.history else 'val_acc'
+    
+    if 'acc' in metrics or 'accuracy' in metrics:
+        if acc_key in history.history:
+            plt.plot(history.history[acc_key], color='g', label='Train Accuracy')
+        if val_acc_key in history.history:
+            plt.plot(history.history[val_acc_key], color='b', label='Validation Accuracy')
+    
     if 'loss' in metrics:
         plt.plot(history.history['loss'], color='r', label='Train Loss')
         plt.plot(history.history['val_loss'], color='m', label='Validation Loss')
@@ -103,6 +111,6 @@ def plot_history(history, model_name):
 
 def plot_and_save_history(history, model_name, file_path, metrics=None):
     if metrics is None:
-        metrics = {'acc', 'loss'}
+        metrics = {'accuracy', 'loss'}
     create_history_plot(history, model_name, metrics)
     plt.savefig(file_path)

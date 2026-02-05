@@ -9,7 +9,7 @@ def patch_path(path):
 
 
 def main():
-    K.set_image_dim_ordering('tf')
+    K.set_image_data_format('channels_last')
     sys.path.append(patch_path('..'))
 
     from recurrent_networks import vgg16BidirectionalLSTMVideoClassifier

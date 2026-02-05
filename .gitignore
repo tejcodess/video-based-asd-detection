@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv_asd/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large data files
+very_large_data/
+*.h5
+*.npy
+extracted_features/
+
+# Mini dataset videos (can be regenerated)
+mini_dataset/training_set/*.mp4
+mini_dataset/testing_set/*.mp4
+
+# Keep folder structure but ignore videos
+!mini_dataset/training_set/ASD/.gitkeep
+!mini_dataset/training_set/TD/.gitkeep
+!mini_dataset/testing_set/ASD/.gitkeep
+!mini_dataset/testing_set/TD/.gitkeep
+
+# Reports (generated files)
+reports/
+
+# Model weights (too large for git - use Git LFS or external storage)
+models/autism_data/*.h5
+
+# Temporary files
+*.tmp
+*.log

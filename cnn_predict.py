@@ -3,7 +3,7 @@ from keras import backend as K
 import os
 import sys
 
-K.set_image_dim_ordering('tf')
+K.set_image_data_format('channels_last')
 
 
 def patch_path(path):

@@ -1,0 +1,28 @@
+# Core Dependencies (Python 3.13 compatible)
+# Note: TensorFlow includes GPU support automatically if CUDA is installed
+# For GPU: Install CUDA Toolkit 11.2+ and cuDNN 8.1+ before installing TensorFlow
+tensorflow
+keras
+numpy
+pandas
+scikit-learn
+scipy
+
+# Visualization
+matplotlib
+
+# Computer Vision
+opencv-contrib-python
+imutils
+
+# Additional utility libraries
+h5py
+pyyaml
+
+# GPU Support Instructions:
+# 1. Download and install CUDA Toolkit 11.2 from: https://developer.nvidia.com/cuda-toolkit-archive
+# 2. Download and install cuDNN 8.1 from: https://developer.nvidia.com/cudnn
+# 3. The venv is located at: D:\projects\01\Video-Neural-Network-ASD-screening\venv
+# 4. Activate with: .\venv\Scripts\Activate.ps1
+# 5. Install with: pip install -r requirements.txt
+# 6. Verify GPU: python gpu_utils.py

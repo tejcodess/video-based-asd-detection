@@ -5,7 +5,7 @@ import os
 
 
 def main():
-    K.common.set_image_dim_ordering('tf')
+    K.set_image_data_format('channels_last')
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
     from plot_utils import plot_and_save_history
