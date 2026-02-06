@@ -5,10 +5,15 @@ from keras.optimizers import SGD
 from keras import backend as K
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, Callback
 import os
 import numpy as np
 import gc
+import json
+import time
+import signal
+import sys
+import shutil
 np.set_printoptions(suppress=True)
 
 from vgg16_feature_extractor import extract_vgg16_features_live, scan_and_extract_vgg16_features
@@ -25,6 +30,117 @@ MAX_ALLOWED_FRAMES = 125
 EMBEDDING_SIZE = 100
 
 K.set_image_data_format('channels_last')
+
+
+class TrainingStateManager:
+    """Manages training state for resume capability"""
+    
+    def __init__(self, model_dir_path):
+        self.state_file = os.path.join(model_dir_path, 'training_state.json')
+        self.checkpoint_dir = os.path.join(model_dir_path, 'checkpoints')
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+    
+    def save_state(self, epoch, total_epochs, best_loss, history_dict):
+        """Save current training state"""
+        state = {
+            'current_epoch': epoch,
+            'total_epochs': total_epochs,
+            'best_val_loss': float(best_loss) if best_loss else None,
+            'completed': epoch >= total_epochs,
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'history': {
+                'loss': [float(x) for x in history_dict.get('loss', [])] if history_dict.get('loss') else [],
+                'val_loss': [float(x) for x in history_dict.get('val_loss', [])] if history_dict.get('val_loss') else [],
+                'accuracy': [float(x) for x in history_dict.get('accuracy', [])] if history_dict.get('accuracy') else [],
+                'val_accuracy': [float(x) for x in history_dict.get('val_accuracy', [])] if history_dict.get('val_accuracy') else []
+            }
+        }
+        
+        with open(self.state_file, 'w') as f:
+            json.dump(state, f, indent=2)
+        
+        best_loss_str = f"{best_loss:.4f}" if best_loss is not None else "N/A"
+        print(f"[State] Saved: Epoch {epoch}/{total_epochs}, Best loss: {best_loss_str}")
+    
+    def load_state(self):
+        """Load previous training state"""
+        if not os.path.exists(self.state_file):
+            return None
+        
+        try:
+            with open(self.state_file, 'r') as f:
+                state = json.load(f)
+            return state
+        except Exception as e:
+            print(f"Warning: Could not load training state: {e}")
+            return None
+    
+    def get_resume_info(self):
+        """Get information about resumable training"""
+        state = self.load_state()
+        if not state:
+            return None
+        
+        info = {
+            'can_resume': True,
+            'completed_epochs': state.get('current_epoch', 0),
+            'total_epochs': state.get('total_epochs', 100),
+            'best_val_loss': state.get('best_val_loss'),
+            'is_complete': state.get('completed', False),
+            'last_updated': state.get('timestamp'),
+            'remaining_epochs': state.get('total_epochs', 100) - state.get('current_epoch', 0)
+        }
+        
+        return info
+
+
+class EpochStateCallback(Callback):
+    """Callback to save training state after each epoch"""
+    
+    def __init__(self, state_manager, total_epochs):
+        super().__init__()
+        self.state_manager = state_manager
+        self.total_epochs = total_epochs
+        self.best_loss = float('inf')
+    
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        
+        # Track best loss
+        val_loss = logs.get('val_loss')
+        if val_loss and val_loss < self.best_loss:
+            self.best_loss = val_loss
+        
+        # Save state
+        self.state_manager.save_state(
+            epoch=epoch + 1,  # Keras epochs are 0-indexed
+            total_epochs=self.total_epochs,
+            best_loss=self.best_loss,
+            history_dict=self.model.history.history
+        )
+
+
+class InterruptHandler:
+    """Handle Ctrl+C gracefully"""
+    
+    def __init__(self, state_manager):
+        self.state_manager = state_manager
+        self.interrupted = False
+        signal.signal(signal.SIGINT, self.handle_interrupt)
+    
+    def handle_interrupt(self, signum, frame):
+        if not self.interrupted:
+            print("\n" + "="*70)
+            print("TRAINING INTERRUPTED (Ctrl+C)")
+            print("="*70)
+            print("Saving current state before exit...")
+            print("You can resume training later from the latest checkpoint.")
+            print("Run: python train_asd_model.py")
+            print("="*70)
+            self.interrupted = True
+        else:
+            print("\nForce quitting...")
+            sys.exit(1)
 
 
 def get_adaptive_batch_size(num_samples):
@@ -268,12 +384,54 @@ class vgg16BidirectionalLSTMVideoClassifier(object):
         print(f"Train batches: {train_num_batches}")
         print(f"Test batches: {test_num_batches}\n")
 
-        checkpoint = ModelCheckpoint(filepath=weight_file_path, save_best_only=True)
+        # Initialize training state manager
+        state_manager = TrainingStateManager(model_dir_path)
+        interrupt_handler = InterruptHandler(state_manager)
+        
+        # Create checkpoints directory
+        checkpoint_dir = os.path.join(model_dir_path, 'checkpoints')
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        # Callback 1: Save best model (monitored by validation loss)
+        best_checkpoint = ModelCheckpoint(
+            filepath=weight_file_path,
+            monitor='val_loss',
+            save_best_only=True,
+            mode='min',
+            verbose=1,
+            save_weights_only=False
+        )
+        
+        # Callback 2: Save every 10 epochs (periodic backup)
+        periodic_checkpoint = ModelCheckpoint(
+            filepath=os.path.join(checkpoint_dir, 'epoch-{epoch:03d}-loss-{val_loss:.4f}.h5'),
+            monitor='val_loss',
+            save_best_only=False,
+            period=10,
+            verbose=1,
+            save_weights_only=False
+        )
+        
+        # Callback 3: Save latest checkpoint (for resume)
+        latest_checkpoint = ModelCheckpoint(
+            filepath=os.path.join(checkpoint_dir, 'latest_checkpoint.h5'),
+            monitor='val_loss',
+            save_best_only=False,
+            period=1,
+            verbose=0,
+            save_weights_only=False
+        )
+        
+        # Callback 4: Save training state
+        state_callback = EpochStateCallback(state_manager, NUM_EPOCHS)
+        
+        # Use all callbacks
+        callbacks = [best_checkpoint, periodic_checkpoint, latest_checkpoint, state_callback]
+        
         history = model.fit(train_gen, steps_per_epoch=train_num_batches,
                            epochs=NUM_EPOCHS,
                            verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
-                           callbacks=[checkpoint])
-        model.save_weights(weight_file_path)
+                           callbacks=callbacks)
 
         return history
 
@@ -461,11 +619,53 @@ class vgg16LSTMVideoClassifier(object):
         print(f"Train batches: {train_num_batches}")
         print(f"Test batches: {test_num_batches}\n")
 
-        checkpoint = ModelCheckpoint(filepath=weight_file_path, save_best_only=True)
+        # Initialize training state manager
+        state_manager = TrainingStateManager(model_dir_path)
+        interrupt_handler = InterruptHandler(state_manager)
+        
+        # Create checkpoints directory
+        checkpoint_dir = os.path.join(model_dir_path, 'checkpoints')
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        # Callback 1: Save best model (monitored by validation loss)
+        best_checkpoint = ModelCheckpoint(
+            filepath=weight_file_path,
+            monitor='val_loss',
+            save_best_only=True,
+            mode='min',
+            verbose=1,
+            save_weights_only=False
+        )
+        
+        # Callback 2: Save every 10 epochs (periodic backup)
+        periodic_checkpoint = ModelCheckpoint(
+            filepath=os.path.join(checkpoint_dir, 'epoch-{epoch:03d}-loss-{val_loss:.4f}.h5'),
+            monitor='val_loss',
+            save_best_only=False,
+            period=10,
+            verbose=1,
+            save_weights_only=False
+        )
+        
+        # Callback 3: Save latest checkpoint (for resume)
+        latest_checkpoint = ModelCheckpoint(
+            filepath=os.path.join(checkpoint_dir, 'latest_checkpoint.h5'),
+            monitor='val_loss',
+            save_best_only=False,
+            period=1,
+            verbose=0,
+            save_weights_only=False
+        )
+        
+        # Callback 4: Save training state
+        state_callback = EpochStateCallback(state_manager, NUM_EPOCHS)
+        
+        # Use all callbacks
+        callbacks = [best_checkpoint, periodic_checkpoint, latest_checkpoint, state_callback]
+        
         history = model.fit(train_gen, steps_per_epoch=train_num_batches,
                            epochs=NUM_EPOCHS,
                            verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
-                           callbacks=[checkpoint])
-        model.save_weights(weight_file_path)
+                           callbacks=callbacks)
 
         return history

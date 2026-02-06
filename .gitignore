@@ -2,51 +2,56 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-*.egg-info/
-dist/
-build/
+*.pyc
+*.pyo
 
-# Virtual Environment
-venv_asd/
+# Virtual environments
 venv/
+venv_asd/
+.venv/
 env/
-ENV/
 
-# IDE
+# Model checkpoints & weights
+models/
+checkpoints/
+*.h5
+*.pth
+*.pt
+*.ckpt
+*.pb
+*.tflite
+
+# Datasets (download at runtime)
+mini_dataset/
+dataset_20percent/
+very_large_data/
+extracted_features/
+feature_cache/
+
+# Generated outputs
+reports/
+logs/
+results/
+illustrations/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
+# Jupyter
+.ipynb_checkpoints/
 
-# Large data files
-very_large_data/
-*.h5
-*.npy
-extracted_features/
-
-# Mini dataset videos (can be regenerated)
-mini_dataset/training_set/*.mp4
-mini_dataset/testing_set/*.mp4
-
-# Keep folder structure but ignore videos
-!mini_dataset/training_set/ASD/.gitkeep
-!mini_dataset/training_set/TD/.gitkeep
-!mini_dataset/testing_set/ASD/.gitkeep
-!mini_dataset/testing_set/TD/.gitkeep
-
-# Reports (generated files)
-reports/
-
-# Model weights (too large for git - use Git LFS or external storage)
-models/autism_data/*.h5
-
-# Temporary files
+# Temp files
+tmpclaude-*
 *.tmp
+*.bak
 *.log
+
+# Archives
+*.tar.gz
+*.zip
+*.rar
