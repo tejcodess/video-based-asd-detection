@@ -10,29 +10,33 @@ venv/
 venv_asd/
 .venv/
 env/
+ENV/
 
 # Model checkpoints & weights
 models/
-checkpoints/
 *.h5
 *.pth
 *.pt
 *.ckpt
-*.pb
-*.tflite
 
-# Datasets (download at runtime)
+# Datasets
 mini_dataset/
 dataset_20percent/
 very_large_data/
-extracted_features/
-feature_cache/
+# Feature cache (auto-generated during training)
+*-vgg16-HiDimFeatures/
+*-vgg16-Features/
 
 # Generated outputs
 reports/
 logs/
 results/
-illustrations/
+# Prediction outputs
+predictions_*.csv
+*_output.csv
+
+# Training states (optional - keep if you want to track training history)
+# training_state*.json
 
 # OS & IDE
 .DS_Store
@@ -41,11 +45,13 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*~
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb
 
-# Temp files
+# Temporary files
 tmpclaude-*
 *.tmp
 *.bak

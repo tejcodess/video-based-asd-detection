@@ -1,9 +1,11 @@
-# Core Dependencies (Python 3.13 compatible)
+# Core Dependencies (Python 3.9-3.13 compatible)
 # Note: TensorFlow includes GPU support automatically if CUDA is installed
 # For GPU: Install CUDA Toolkit 11.2+ and cuDNN 8.1+ before installing TensorFlow
+
+# NumPy must be < 2.0 for compatibility with TensorFlow/Keras/h5py
+numpy<2.0
 tensorflow
 keras
-numpy
 pandas
 scikit-learn
 scipy
