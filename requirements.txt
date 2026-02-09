@@ -1,30 +1,70 @@
-# Core Dependencies (Python 3.9-3.13 compatible)
-# Note: TensorFlow includes GPU support automatically if CUDA is installed
-# For GPU: Install CUDA Toolkit 11.2+ and cuDNN 8.1+ before installing TensorFlow
+# ============================================================================
+# ASD Detection Model - Python Dependencies
+# ============================================================================
+# Python Version: 3.9 - 3.11 (3.11 recommended)
+# Last Updated: February 2026
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For GPU support:
+#   pip install tensorflow[and-cuda]==2.15.0
+#
+# GPU Requirements:
+#   - NVIDIA GPU with CUDA support
+#   - CUDA Toolkit 11.2+ or 12.x
+#   - cuDNN 8.1+
+# ============================================================================
 
-# NumPy must be < 2.0 for compatibility with TensorFlow/Keras/h5py
-numpy<2.0
-tensorflow
-keras
-pandas
-scikit-learn
-scipy
-
-# Visualization
-matplotlib
+# Core Deep Learning
+tensorflow==2.15.0
+keras==2.15.0
 
 # Computer Vision
-opencv-contrib-python
-imutils
+opencv-contrib-python==4.8.0.74
 
-# Additional utility libraries
-h5py
-pyyaml
+# Scientific Computing
+numpy==1.24.3
+pandas==2.0.3
+scipy==1.11.0
 
-# GPU Support Instructions:
-# 1. Download and install CUDA Toolkit 11.2 from: https://developer.nvidia.com/cuda-toolkit-archive
-# 2. Download and install cuDNN 8.1 from: https://developer.nvidia.com/cudnn
-# 3. The venv is located at: D:\projects\01\Video-Neural-Network-ASD-screening\venv
-# 4. Activate with: .\venv\Scripts\Activate.ps1
-# 5. Install with: pip install -r requirements.txt
-# 6. Verify GPU: python gpu_utils.py
+# Machine Learning
+scikit-learn==1.3.0
+
+# Visualization
+matplotlib==3.7.2
+
+# Utilities
+imutils==0.5.4
+
+# Optional: Progress bars
+tqdm==4.66.1
+
+# ============================================================================
+# IMPORTANT NOTES
+# ============================================================================
+#
+# 1. NumPy Version:
+#    - Must use NumPy < 2.0 for TensorFlow 2.15 compatibility
+#    - NumPy 2.x causes ABI version mismatch errors
+#
+# 2. GPU Setup:
+#    - Basic: pip install tensorflow==2.15.0
+#    - With CUDA: pip install tensorflow[and-cuda]==2.15.0
+#    - Verify GPU: python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+#
+# 3. Virtual Environment (Recommended):
+#    - Create: python -m venv venv
+#    - Activate (Windows): .\venv\Scripts\Activate.ps1
+#    - Activate (Linux/Mac): source venv/bin/activate
+#    - Install: pip install -r requirements.txt
+#
+# 4. Common Issues:
+#    - NumPy error: pip uninstall numpy -y && pip install "numpy<2.0"
+#    - Import errors: pip install -r requirements.txt --force-reinstall
+#    - GPU not detected: Ensure CUDA/cuDNN installed correctly
+#
+# 5. Verify Installation:
+#    python verify_installation.py
+#
+# ============================================================================

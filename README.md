@@ -1,430 +1,330 @@
+# Video-Based ASD Detection Using Deep Learning
+
+Automated detection of Autism Spectrum Disorder (ASD) from video data using VGG16 + LSTM deep learning architecture.
+
 [![CC BY-NC-ND 4.0][cc-by-nc-nd-shield]][cc-by-nc-nd]
 
 [cc-by-nc-nd]: http://creativecommons.org/licenses/by-nc-nd/4.0/
 [cc-by-nc-nd-image]: https://licensebuttons.net/l/by-nc-nd/4.0/88x31.png
 [cc-by-nc-nd-shield]: https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg
 
-# ADOS OpenPose Video Neural Network
+## 🎯 Overview
 
-This repository contains code for classifying Autism Spectrum Disorder (ASD) using [OpenPose](https://github.com/CMU-Perceptual-Computing-Lab/openpose) normalized ADOS clinical examination video recordings. The implementation uses a VGG16-LSTM architecture for video-based classification and has been validated in peer-reviewed research ([Paper 1](https://www.nature.com/articles/s41598-021-94378-z) & [Paper 2](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0308388)).
+This project uses deep learning to classify videos of children into two categories:
+- **ASD**: Autism Spectrum Disorder
+- **TD**: Typically Developing
 
-The neural network processes OpenPose skeletal keypoint videos with blank backgrounds and was originally inspired by [VideoClassifier-CNNLSTM](https://github.com/jibinmathew69/VideoClassifier-CNNLSTM).
+The model extracts visual features using VGG16 (pre-trained on ImageNet) and uses LSTM networks to capture temporal patterns across video frames. This implementation has been validated in peer-reviewed research ([Paper 1](https://www.nature.com/articles/s41598-021-94378-z) & [Paper 2](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0308388)).
 
 <p align="center">
 <img src=https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening/blob/main/illustrations/openpose.jpg>
 </p>
 
----
+## ✨ Features
 
-## Table of Contents
+- **VGG16 Feature Extraction**: Transfer learning from ImageNet
+- **LSTM Temporal Analysis**: Captures behavioral patterns over time
+- **Feature Caching**: Speeds up training by caching extracted features
+- **Checkpoint System**: Save and resume training at any time
+- **GPU Acceleration**: Supports NVIDIA GPUs with CUDA
+- **Flexible Configuration**: Easy to customize via `config.py`
+- **OpenPose Support**: Process OpenPose skeletal keypoint videos
 
-- [Project Overview](#project-overview)
-- [Prerequisites](#prerequisites)
-- [Installation & Environment Setup](#installation--environment-setup)
-- [Dataset Preparation](#dataset-preparation)
-- [Training the Model](#training-the-model)
-- [Running Predictions](#running-predictions)
-- [Reproducing Results](#reproducing-results)
-- [Expected Outputs](#expected-outputs)
-- [Troubleshooting](#troubleshooting)
-- [Citation](#citation)
+## 📋 Requirements
 
----
+- **Python**: 3.11 (recommended) or 3.9-3.11
+- **GPU** (optional but recommended): NVIDIA GPU with CUDA support
+- **RAM**: 16 GB minimum
+- **Disk Space**: 
+  - Code: < 100 MB
+  - Dataset: Depends on your data (10-100 GB typical)
+  - Models: ~2 GB for checkpoints
 
-## Project Overview
+## 🚀 Quick Start
 
-### Architecture
-- **Feature Extractor**: VGG16 (pre-trained on ImageNet)
-- **Temporal Model**: LSTM
-- **Task**: Binary classification (ASD vs TD - Typically Developing)
-
-### Key Features
-- Automated VGG16 feature extraction with caching
-- LSTM-based temporal sequence modeling
-- Support for video segmentation and prediction aggregation
-- GPU acceleration support
-- Comprehensive training history visualization
-
----
-
-## Prerequisites
-
-### Hardware Requirements
-- **Minimum**: CPU-only setup (slower training)
-- **Recommended**: NVIDIA GPU with CUDA support
-  - CUDA Toolkit 11.2+ 
-  - cuDNN 8.1+
-  - 8GB+ GPU memory recommended
-
-### Software Requirements
-- **Operating System**: Windows 10/11, Linux, or macOS
-- **Python**: 3.9 - 3.13
-- **Git**: For cloning the repository
-
-### Dependencies
-Core libraries (see `requirements.txt`):
-- TensorFlow (with GPU support if CUDA available)
-- Keras
-- OpenCV
-- NumPy, Pandas, Scikit-learn
-- Matplotlib (for visualization)
-
----
-
-## Installation & Environment Setup
-
-### Step 1: Clone the Repository
-
+### 1. Clone Repository
 ```bash
 git clone https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening.git
 cd Video-Neural-Network-ASD-screening
 ```
 
-### Step 2: Create Virtual Environment
-
-**Option A: Using venv (Recommended for Windows)**
-
+### 2. Setup Environment
 ```bash
-# Windows PowerShell
+# Create virtual environment
 python -m venv venv
-.\venv\Scripts\Activate.ps1
 
-# Linux/macOS
-python3 -m venv venv
+# Activate (Windows)
+venv\Scripts\activate
+
+# Activate (Linux/Mac)
 source venv/bin/activate
-```
 
-**Option B: Using Conda**
-
-```bash
-conda create -n asd_screening python=3.9 -y
-conda activate asd_screening
-```
-
-### Step 3: Install Dependencies
-
-```bash
-pip install --upgrade pip
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Step 4: Verify Installation
-
-**Check Python packages:**
-```bash
-python -c "import tensorflow as tf; print(f'TensorFlow: {tf.__version__}')"
-python -c "import cv2; print(f'OpenCV: {cv2.__version__}')"
-```
-
-**Check GPU availability (if applicable):**
-```bash
-python -c "import tensorflow as tf; print('GPU Available:', len(tf.config.list_physical_devices('GPU')) > 0)"
-```
-
----
-
-## Dataset Preparation
-
-### Dataset Structure
-
-The project expects datasets organized as follows:
+### 3. Prepare Dataset
+Organize your videos in this structure:
 
 ```
-your_dataset/
+dataset/
 ├── training_set/
 │   ├── ASD/
-│   │   ├── video1.avi
-│   │   ├── video2.avi
+│   │   ├── video1.mp4
+│   │   ├── video2.mp4
 │   │   └── ...
 │   └── TD/
-│       ├── video1.avi
-│       ├── video2.avi
+│       ├── video1.mp4
+│       ├── video2.mp4
 │       └── ...
 └── testing_set/
     ├── ASD/
+    │   ├── video1.mp4
     │   └── ...
     └── TD/
+        ├── video1.mp4
         └── ...
 ```
 
-### Preparing Your Dataset
+### 4. Configure Paths
+Edit [config.py](config.py) and set your dataset location:
 
-1. **Video Format**: `.avi` or `.mp4` files
-2. **OpenPose Processing**: Videos should be OpenPose skeletal keypoint visualizations on blank backgrounds
-3. **Class Organization**: Each class (ASD, TD) in separate subdirectories
-4. **Naming**: Any naming convention is supported
-
-### Example Datasets Included
-
-The project includes example datasets:
-- `mini_dataset/` - Small sample for testing
-- `dataset_20percent/` - 20% subset for development
-
-**Update Dataset Paths:**
-
-Edit the dataset paths in the training/prediction scripts:
-
-**In `train_asd_model.py`:**
 ```python
-DATASET_PATH = r"D:\projects\01\dataset\autism_data_anonymized\training_set"
+DATASET_BASE = r"C:\path\to\your\dataset"
 ```
 
-**In `predict_asd_model.py`:**
-```python
-TEST_DATASET_PATH = r"D:\projects\01\dataset\autism_data_anonymized\testing_set"
+### 5. Train Model
+```bash
+python train_asd_model.py
 ```
 
----
+The training process will:
+- Extract VGG16 features from videos (cached for reuse)
+- Train LSTM model on temporal patterns
+- Save checkpoints every epoch
+- Generate training history plots
+- Save final model and configuration
 
-## Training the Model
+### 6. Make Predictions
+```bash
+python predict_asd_model.py
+```
 
-### Step 1: Configure Training Parameters
+Results will be saved to:
+- `predictions_YYYYMMDD_HHMMSS.csv` - Detailed predictions
+- Console output with accuracy metrics
 
-Open `train_asd_model.py` and adjust as needed:
+## 📁 Project Structure
+
+```
+Video-Neural-Network-ASD-screening/
+├── config.py                    # Configuration file (EDIT THIS FIRST!)
+├── train_asd_model.py          # Training script
+├── predict_asd_model.py        # Prediction script
+├── asd_data_loader.py          # Data loading utilities
+├── vgg16_feature_extractor.py  # Feature extraction
+├── recurrent_networks.py       # LSTM model architecture
+├── plot_utils.py               # Visualization utilities
+├── verify_installation.py      # Check environment setup
+├── requirements.txt            # Python dependencies
+├── README.md                   # This file
+├── INSTALLATION.md             # Detailed installation guide
+├── DATASET_GUIDE.md            # Dataset preparation guide
+├── LICENSE.md                  # License information
+│
+├── models/                     # Trained models (auto-generated)
+│   └── autism_data/
+│       ├── vgg16-lstm-hi-dim-weights.h5
+│       ├── vgg16-lstm-hi-dim-architecture.json
+│       ├── vgg16-lstm-hi-dim-config.npy
+│       ├── training_state.json
+│       └── checkpoints/
+│
+├── reports/                    # Training reports (auto-generated)
+│   └── autism_data/
+│       ├── training_history.png
+│       └── accuracy_plot.png
+│
+├── logs/                       # Training logs (auto-generated)
+│
+└── extracted_features/         # Cached VGG16 features (auto-generated)
+```
+
+## 🔧 Configuration
+
+All settings are in [config.py](config.py). Key parameters:
 
 ```python
 # Dataset location
-DATASET_PATH = r"path/to/your/training_set"
+DATASET_BASE = r"D:\path\to\dataset"
 
-# Training parameters
-NUM_EPOCHS = 100          # Number of training epochs
-TEST_SIZE = 0.2           # Validation split (20%)
-VGG16_INCLUDE_TOP = False # Use high-dimensional features (recommended)
+# Model architecture
+VGG16_INCLUDE_TOP = False    # False for hi-dim features (25088)
+LSTM_UNITS = 512
+DROPOUT_RATE = 0.5
+
+# Training
+BATCH_SIZE = 625             # Reduce if GPU out of memory
+EPOCHS = 100
+VALIDATION_SPLIT = 0.2       # 20% validation data
 ```
 
-### Step 2: Run Training
+## 🎓 How It Works
 
-```bash
-python train_asd_model.py
+### 1. Feature Extraction (VGG16)
+- Extracts 1 frame per second from each video
+- Uses VGG16 (pre-trained on ImageNet) to extract visual features
+- Features are cached to disk to speed up subsequent training runs
+
+### 2. Temporal Analysis (LSTM)
+- LSTM processes the sequence of frame features
+- Learns temporal patterns that distinguish ASD from TD behaviors
+- Outputs binary classification: ASD or TD
+
+### 3. Training Process
+```
+Video → Frame Extraction → VGG16 Features → LSTM → Classification
+  |            |                  |            |          |
+ .mp4      224x224 images    25088-dim      512 units  ASD/TD
 ```
 
-### Training Process
+## 📊 Expected Results
 
-The script will:
-1. ✓ Verify GPU availability
-2. ✓ Scan and validate dataset structure
-3. ✓ Extract VGG16 features (or load from cache)
-4. ✓ Build LSTM model
-5. ✓ Train with automatic validation
-6. ✓ Save best model checkpoints
-7. ✓ Generate training history plots
+With a well-balanced dataset, you should achieve:
+- **Training Accuracy**: 80-95%
+- **Validation Accuracy**: 75-90%
+- **Test Accuracy**: 70-85%
 
-### Monitoring Training
+Results depend heavily on:
+- Dataset quality and size
+- Video diversity
+- Class balance
+- Training time
 
-- **Console Output**: Real-time epoch progress, loss, and accuracy
-- **Training State**: Saved to `models/autism_data/training_state.json`
-- **Checkpoints**: Best models saved in `models/autism_data/checkpoints/`
+## 🐛 Troubleshooting
 
-### Expected Training Time
-
-- **Small dataset (10-20 videos)**: 5-15 minutes (GPU)
-- **Medium dataset (50-100 videos)**: 30-90 minutes (GPU)
-- **Large dataset (100+ videos)**: 2-5 hours (GPU)
-
-*CPU training takes significantly longer (5-10x)*
-
----
-
-## Running Predictions
-
-### Step 1: Verify Trained Model
-
-Ensure training completed successfully:
-```bash
-ls models/autism_data/
-# Should contain: vgg16-lstm-hi-dim-weights.h5, vgg16-lstm-hi-dim-config.npy
-```
-
-### Step 2: Prepare Test Dataset
-
-Organize test videos in the same structure as training data:
-```
-testing_set/
-├── ASD/
-│   └── test_videos...
-└── TD/
-    └── test_videos...
-```
-
-### Step 3: Configure Prediction Script
-
-Edit `predict_asd_model.py`:
+### GPU Out of Memory
 ```python
-TEST_DATASET_PATH = r"path/to/your/testing_set"
+# In config.py, reduce batch size
+BATCH_SIZE = 256  # or 128, or 64
 ```
 
-### Step 4: Run Predictions
-
-**Option A: Console output**
+### CUDA/cuDNN Not Found
 ```bash
-python predict_asd_model.py
+# Install TensorFlow with GPU support
+pip install tensorflow[and-cuda]==2.15.0
 ```
 
-**Option B: Save to CSV**
+### NumPy ABI version mismatch
 ```bash
-python predict_asd_model.py > predictions_output.csv
-```
-
-The script outputs predictions with confidence scores for each video.
-
-### Understanding Predictions
-
-Each prediction includes:
-- Video filename
-- Predicted class (ASD or TD)
-- Confidence score (0-1)
-- True label (if known)
-
-### Prediction Aggregation
-
-For segmented videos (5-second clips from longer recordings), you can aggregate predictions:
-
-1. Save predictions to CSV
-2. Group predictions by subject/original video
-3. Apply majority voting or confidence-weighted aggregation
-4. Optional: Filter by confidence threshold (e.g., >90%)
-
----
-
-## Reproducing Results
-
-To reproduce the results from the published papers:
-
-### 1. Paper 1 (Scientific Reports 2021)
-
-```bash
-# Use the full dataset with standard 80-20 train-test split
-python train_asd_model.py
-python predict_asd_model.py
-```
-
-### 2. Paper 2 (PLOS ONE 2024)
-
-This paper used video-audio ensemble models. The video component follows the same training procedure with additional confidence-based filtering during prediction aggregation (>90% threshold).
-
-### Expected Performance Metrics
-
-- **Accuracy**: 75-85% (varies by dataset size)
-- **F1 Score**: 0.75-0.82
-- **Precision**: 0.77-0.85
-- **Recall**: 0.73-0.86
-
-*Note: Results depend on dataset size, quality, and train-test split*
-
----
-
-## Expected Outputs
-
-### Training Outputs
-
-**Directory**: `models/autism_data/`
-
-- `vgg16-lstm-hi-dim-weights.h5` - Trained model weights
-- `vgg16-lstm-hi-dim-config.npy` - Model configuration
-- `vgg16-lstm-hi-dim-architecture.json` - Model architecture (JSON)
-- `training_state.json` - Training metadata and history
-- `checkpoints/` - Best model checkpoints by epoch
-
-**Directory**: `reports/autism_data/`
-
-- `vgg16-lstm-hi-dim-history.png` - Training/validation curves
-- Training logs and metrics
-
-### Prediction Outputs
-
-- **Console**: Per-video predictions with confidence scores
-- **CSV File**: `predictions_YYYYMMDD_HHMMSS.csv` with all predictions
-- **Summary Statistics**: Overall accuracy, precision, recall, F1-score
-
-### Feature Cache
-
-**Directory**: `dataset/autism_data_anonymized/training_set-vgg16-HiDimFeatures/`
-
-Cached VGG16 features (`.npy` files) to speed up subsequent training runs. These are automatically generated and reused.
-
-Example training history:
-
-<p align="center">
-<img src=https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening/blob/main/reports/autism_data/vgg16-lstm-hi-dim-history.png>
-</p>
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**1. NumPy ABI version mismatch / h5py import error**
-```
-RuntimeError: module compiled against ABI version 0x1000009 but this version of numpy is 0x2000000
-ImportError: cannot import name '_errors' from 'h5py'
-```
-
-**Solution**: NumPy 2.x is incompatible with TensorFlow/Keras. Reinstall with the correct version:
-```bash
+# NumPy 2.x is incompatible with TensorFlow 2.15
 pip uninstall numpy -y
 pip install "numpy<2.0"
-# Or reinstall all dependencies
+```
+
+### Import Errors
+```bash
+# Reinstall all dependencies
 pip install -r requirements.txt --force-reinstall
 ```
 
-**2. ModuleNotFoundError: No module named 'tensorflow'**
+### Feature Extraction Slow
+Feature extraction runs once and caches results. Subsequent runs use cached features.
+- First run: ~1-2 hours (depending on dataset size)
+- Subsequent runs: ~5-10 minutes
+
+### Model Not Learning
+Check:
+1. Dataset is properly organized (ASD/ and TD/ folders)
+2. Sufficient training data (>100 videos per class minimum)
+3. Videos are not corrupted
+4. Classes are balanced
+
+## 🔬 Advanced Usage
+
+### Resume Training from Checkpoint
+Training automatically saves checkpoints. If interrupted, just run:
 ```bash
-# Ensure virtual environment is activated
-pip install -r requirements.txt
+python train_asd_model.py
 ```
+The script will detect existing checkpoints and ask if you want to resume.
 
-**3. GPU not detected despite having CUDA installed**
-```bash
-# Verify CUDA installation
-nvidia-smi
-
-# Check TensorFlow GPU support
-python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
-
-# If still not detected, reinstall TensorFlow with correct CUDA version
-pip uninstall tensorflow
-pip install tensorflow
-```
-
-**4. Dataset not found errors**
-- Verify the `DATASET_PATH` in your training/prediction scripts
-- Check that folder structure follows the required format
-- Ensure videos are in `.avi` or `.mp4` format
-
-**5. Out of memory errors during training**
+### Custom Dataset Structure
+If your dataset has a different structure, modify paths in [config.py](config.py):
 ```python
-# In train_asd_model.py, reduce batch size by editing:
-# The batch size is auto-calculated, but you can manually set it lower
+TRAINING_DATA_PATH = r"C:\custom\path\train"
+TESTING_DATA_PATH = r"C:\custom\path\test"
+CLASSES = ["ASD", "TD"]  # Must match folder names
 ```
 
-**6. Feature extraction taking too long**
-- Features are cached automatically after first extraction
-- Check `training_set-vgg16-HiDimFeatures/` for cached `.npy` files
-- Using GPU significantly speeds up feature extraction
+### Hyperparameter Tuning
+Edit [config.py](config.py) to experiment:
+- `LSTM_UNITS`: 256, 512, 1024
+- `DROPOUT_RATE`: 0.3, 0.5, 0.7
+- `BATCH_SIZE`: 64, 128, 256, 625
+- `LEARNING_RATE`: Add custom learning rate in training script
 
-**7. Model performance is poor**
-- Ensure sufficient training data (minimum 50-100 videos recommended)
-- Check data balance between classes
-- Increase number of epochs
-- Verify video quality and OpenPose processing
+### Feature Dimension Selection
+```python
+# Standard VGG16 features (1000-dim)
+VGG16_INCLUDE_TOP = True
 
-**8. Permission errors on Windows**
-```powershell
-# Run PowerShell as administrator or adjust execution policy
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+# Hi-dimensional features (25088-dim) - RECOMMENDED
+VGG16_INCLUDE_TOP = False
 ```
 
-### Getting Help
+## 📖 Documentation
 
-For additional support:
-- Check the [Issues](https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening/issues) page
-- Review the referenced papers for methodological details
-- Ensure all prerequisites are correctly installed
+- [INSTALLATION.md](INSTALLATION.md) - Complete installation guide
+- [DATASET_GUIDE.md](DATASET_GUIDE.md) - How to prepare your dataset
+- [LICENSE.md](LICENSE.md) - License information
 
----
+## 🧪 Verify Installation
 
-## Citation
+Before training, verify your environment:
+```bash
+python verify_installation.py
+```
+
+This checks:
+- Python version
+- TensorFlow installation
+- GPU availability
+- Required packages
+- Dataset paths
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## ⚠️ Privacy & Ethics
+
+This tool is for research purposes only. When working with sensitive medical data:
+
+1. **Obtain proper consent** from participants or guardians
+2. **Anonymize data** - remove personally identifiable information
+3. **Secure storage** - encrypt sensitive data
+4. **Follow regulations** - HIPAA, GDPR, local laws
+5. **Clinical validation** - not a replacement for professional diagnosis
+
+## 📄 License
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License][cc-by-nc-nd].
+
+## 🙏 Acknowledgments
+
+- **VGG16**: Visual Geometry Group, University of Oxford
+- **ImageNet**: Pre-trained weights for transfer learning
+- **TensorFlow/Keras**: Deep learning framework
+- **OpenCV**: Computer vision library
+- **Inspired by**: [VideoClassifier-CNNLSTM](https://github.com/jibinmathew69/VideoClassifier-CNNLSTM)
+
+## 📬 Contact
+
+For questions, issues, or collaboration:
+- **GitHub Issues**: [https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening/issues](https://github.com/nshreyasvi/Video-Neural-Network-ASD-screening/issues)
+
+## 📚 Citation
 
 If you use this code in your research, please cite:
 
@@ -459,8 +359,16 @@ If you use this code in your research, please cite:
 }
 ```
 
+## 📚 References
+
+1. Simonyan, K., & Zisserman, A. (2014). Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556.
+
+2. Hochreiter, S., & Schmidhuber, J. (1997). Long short-term memory. Neural computation, 9(8), 1735-1780.
+
+3. Deng, J., Dong, W., Socher, R., Li, L. J., Li, K., & Fei-Fei, L. (2009). ImageNet: A large-scale hierarchical image database. CVPR 2009.
+
 ---
 
-## License
+**Made with ❤️ for autism research and early intervention**
 
-This work is licensed under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License][cc-by-nc-nd].
+*Last updated: February 2026*
