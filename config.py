@@ -19,10 +19,14 @@ TESTING_DATA_PATH = os.path.join(DATASET_BASE, "testing_set")
 # Class names (folders inside training_set and testing_set)
 CLASSES = ["ASD", "TD"]
 
-# Verify dataset exists
-if not os.path.exists(DATASET_BASE):
-    print(f"⚠️  WARNING: Dataset not found at {DATASET_BASE}")
-    print(f"   Please update DATASET_BASE in config.py")
+# ============================================================================
+# PREPROCESSING CONFIGURATION (New Section)
+# ============================================================================
+# Path where normalized skeletal videos will be stored
+NORMALIZED_VIDEOS_PATH = os.path.join(DATASET_BASE, "normalized_videos")
+
+# Set to True to enable raw-to-pose conversion
+ENABLE_POSE_NORMALIZATION = True 
 
 # ============================================================================
 # OUTPUT PATHS
@@ -43,17 +47,17 @@ LOGS_PATH = os.path.join(PROJECT_ROOT, "logs")
 FEATURES_PATH = os.path.join(PROJECT_ROOT, "extracted_features")
 
 # Create directories if they don't exist
-for path in [MODELS_PATH, CHECKPOINTS_PATH, REPORTS_PATH, LOGS_PATH, FEATURES_PATH]:
+# Added NORMALIZED_VIDEOS_PATH to the list
+for path in [MODELS_PATH, CHECKPOINTS_PATH, REPORTS_PATH, LOGS_PATH, FEATURES_PATH, NORMALIZED_VIDEOS_PATH]:
     os.makedirs(path, exist_ok=True)
 
 # ============================================================================
 # MODEL CONFIGURATION
 # ============================================================================
 
-# VGG16 Feature Extraction
-VGG16_INCLUDE_TOP = False  # False = Hi-dim features (25088), True = Standard (1000)
-IMAGE_SIZE = (224, 224)    # VGG16 input size
-FRAME_RATE = 1             # Extract 1 frame per second
+VGG16_INCLUDE_TOP = False  
+IMAGE_SIZE = (224, 224)    
+FRAME_RATE = 1             
 
 # LSTM Model
 LSTM_UNITS = 512
@@ -61,24 +65,14 @@ DROPOUT_RATE = 0.5
 DENSE_UNITS = 512
 
 # Training
-BATCH_SIZE = 625           # Reduce if GPU out of memory (try 256 or 128)
+BATCH_SIZE = 625           
 EPOCHS = 100
-VALIDATION_SPLIT = 0.2     # 20% for validation
+VALIDATION_SPLIT = 0.2     
 RANDOM_SEED = 42
 
-# ============================================================================
 # GPU CONFIGURATION
-# ============================================================================
-
-# Enable GPU memory growth (prevents OOM errors)
 GPU_MEMORY_GROWTH = True
-
-# Limit GPU memory (None = use all available)
-GPU_MEMORY_LIMIT = None  # Set to 4096 for 4GB limit
-
-# ============================================================================
-# DISPLAY SETTINGS
-# ============================================================================
+GPU_MEMORY_LIMIT = None  
 
 def print_config():
     """Print current configuration"""
@@ -86,17 +80,10 @@ def print_config():
     print("CONFIGURATION")
     print("=" * 70)
     print(f"Dataset:        {DATASET_BASE}")
-    print(f"Training data:  {TRAINING_DATA_PATH}")
-    print(f"Testing data:   {TESTING_DATA_PATH}")
-    print(f"Classes:        {CLASSES}")
-    print(f"Models:         {MODELS_PATH}")
-    print(f"Reports:        {REPORTS_PATH}")
-    print(f"")
+    print(f"Normalization:  {'ENABLED' if ENABLE_POSE_NORMALIZATION else 'DISABLED'}")
     print(f"VGG16 top:      {VGG16_INCLUDE_TOP}")
-    print(f"LSTM units:     {LSTM_UNITS}")
     print(f"Batch size:     {BATCH_SIZE}")
     print(f"Epochs:         {EPOCHS}")
-    print(f"Validation:     {VALIDATION_SPLIT * 100}%")
     print("=" * 70)
 
 if __name__ == "__main__":
