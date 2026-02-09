@@ -16,16 +16,25 @@ import sys
 import shutil
 np.set_printoptions(suppress=True)
 
+# Import centralized configuration
+try:
+    import config
+    USE_CONFIG = True
+except ImportError:
+    USE_CONFIG = False
+    print("⚠️ Warning: config.py not found, using default values")
+
 from vgg16_feature_extractor import extract_vgg16_features_live, scan_and_extract_vgg16_features
 
 # Default batch size for large datasets
-DEFAULT_BATCH_SIZE = 625
+DEFAULT_BATCH_SIZE = config.BATCH_SIZE if USE_CONFIG else 625
 # Minimum batch size for small datasets
 MIN_BATCH_SIZE = 2
 
-NUM_EPOCHS = 100
+# Use config.py values if available
+NUM_EPOCHS = config.EPOCHS if USE_CONFIG else 100
 VERBOSE = 1
-HIDDEN_UNITS = 512
+HIDDEN_UNITS = config.LSTM_UNITS if USE_CONFIG else 512
 MAX_ALLOWED_FRAMES = 125
 EMBEDDING_SIZE = 100
 
@@ -428,10 +437,24 @@ class vgg16BidirectionalLSTMVideoClassifier(object):
         # Use all callbacks
         callbacks = [best_checkpoint, periodic_checkpoint, latest_checkpoint, state_callback]
         
+        print("\n" + "="*70)
+        print(f"STARTING TRAINING - {NUM_EPOCHS} EPOCHS")
+        print("="*70)
+        print(f"📊 Progress will be saved automatically")
+        print(f"📂 Checkpoints: {checkpoint_dir}")
+        print("="*70 + "\n")
+        
         history = model.fit(train_gen, steps_per_epoch=train_num_batches,
                            epochs=NUM_EPOCHS,
                            verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
                            callbacks=callbacks)
+        
+        print("\n" + "="*70)
+        print("✓ TRAINING COMPLETED SUCCESSFULLY")
+        print("="*70)
+        print(f"📂 Model saved to: {weight_file_path}")
+        print(f"📂 Checkpoints saved in: {checkpoint_dir}")
+        print("="*70 + "\n")
 
         return history
 
@@ -623,9 +646,24 @@ class vgg16LSTMVideoClassifier(object):
         state_manager = TrainingStateManager(model_dir_path)
         interrupt_handler = InterruptHandler(state_manager)
         
-        # Create checkpoints directory
-        checkpoint_dir = os.path.join(model_dir_path, 'checkpoints')
+        # Create checkpoints directory (use config.py path if available)
+        if USE_CONFIG and hasattr(config, 'CHECKPOINTS_PATH'):
+            checkpoint_dir = config.CHECKPOINTS_PATH
+        else:
+            checkpoint_dir = os.path.join(model_dir_path, 'checkpoints')
         os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        # Display checkpoint configuration
+        print("\n" + "="*70)
+        print("CHECKPOINT CONFIGURATION")
+        print("="*70)
+        print(f"✓ Checkpoints enabled")
+        print(f"  Directory: {checkpoint_dir}")
+        print(f"  Best model: {weight_file_path}")
+        print(f"  Periodic saves: Every 10 epochs")
+        print(f"  Latest checkpoint: Every epoch (for resume)")
+        print(f"\n💡 Training can be interrupted (Ctrl+C) and resumed later")
+        print("="*70 + "\n")
         
         # Callback 1: Save best model (monitored by validation loss)
         best_checkpoint = ModelCheckpoint(
@@ -663,9 +701,23 @@ class vgg16LSTMVideoClassifier(object):
         # Use all callbacks
         callbacks = [best_checkpoint, periodic_checkpoint, latest_checkpoint, state_callback]
         
+        print("\n" + "="*70)
+        print(f"STARTING TRAINING - {NUM_EPOCHS} EPOCHS")
+        print("="*70)
+        print(f"📊 Progress will be saved automatically")
+        print(f"📂 Checkpoints: {checkpoint_dir}")
+        print("="*70 + "\n")
+        
         history = model.fit(train_gen, steps_per_epoch=train_num_batches,
                            epochs=NUM_EPOCHS,
                            verbose=1, validation_data=test_gen, validation_steps=test_num_batches,
                            callbacks=callbacks)
+        
+        print("\n" + "="*70)
+        print("✓ TRAINING COMPLETED SUCCESSFULLY")
+        print("="*70)
+        print(f"📂 Model saved to: {weight_file_path}")
+        print(f"📂 Checkpoints saved in: {checkpoint_dir}")
+        print("="*70 + "\n")
 
         return history
